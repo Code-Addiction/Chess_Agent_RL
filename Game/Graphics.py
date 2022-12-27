@@ -4,6 +4,8 @@ import pygame
 import sys
 
 
+pygame.init()
+
 WIDTH = 800
 FIELD_WIDTH = WIDTH // 8
 pieces = {'P': pygame.transform.scale(pygame.image.load('images/white_pawn.png'), (FIELD_WIDTH, FIELD_WIDTH)),
@@ -48,11 +50,12 @@ class Window:
             for y in range(8):
                 pygame.draw.line(self._window, (0, 0, 0), (y * FIELD_WIDTH, 0), (y * FIELD_WIDTH, WIDTH))
         pygame.display.update()
-        #TODO: Add visualizations for pawn promotions
 
     def get_move(self, board: list, turn: int, possible_moves: list, is_check: bool) -> tuple[int, int, int]:
         piece_is_selected = False
         piece_x, piece_y = None, None
+        promotion_active = False
+        promotion_x, promotion_y = None, None
         while True:
             pygame.time.delay(50)
             for event in pygame.event.get():
@@ -85,15 +88,57 @@ class Window:
 
                         pygame.display.update()
                     else:
+                        if promotion_active:
+                            if y != 4:
+                                continue
+                            move = chr(97 + piece_x) + str(8 - piece_y) + chr(97 + promotion_x) + str(8 - promotion_y)
+                            if x == 2:
+                                promotion = 'q'
+                            elif x == 3:
+                                promotion = 'r'
+                            elif x == 4:
+                                promotion = 'b'
+                            elif x == 5:
+                                promotion = 'n'
+                            else:
+                                continue
+                            move = move + promotion
+                            if move in possible_moves:
+                                return move  #TODO: Change move representation to the one from alphazero paper
+                            continue
                         field = chr(97 + piece_x) + str(8 - piece_y)
                         target_field = chr(97 + x) + str(8 - y)
                         if field + target_field in possible_moves:
                             return field + target_field  #TODO: Change move representation to the one from alphazero paper
+                        elif field + target_field in set([m[:4] for m in possible_moves]):
+                            promotion_x, promotion_y = x, y
+                            promotion_active = True
+
+                            pygame.draw.rect(self._window, (0, 0, 0), (2 * FIELD_WIDTH - 10, 4 * FIELD_WIDTH - 10,
+                                                                       4 * FIELD_WIDTH + 20, FIELD_WIDTH + 20))
+                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                             (2 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                            self._window.blit(pieces[chr(81 + turn * 32)], (2 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                             (3 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                            self._window.blit(pieces[chr(82 + turn * 32)], (3 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                             (4 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                            self._window.blit(pieces[chr(66 + turn * 32)], (4 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                             (5 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                            self._window.blit(pieces[chr(78 + turn * 32)], (5 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                            pygame.draw.line(self._window, (0, 0, 0), (3 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                                             (3 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+                            pygame.draw.line(self._window, (0, 0, 0), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                                             (4 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+                            pygame.draw.line(self._window, (0, 0, 0), (5 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                                             (5 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+                            pygame.display.update()
                         else:
                             piece_is_selected = False
                             piece_x, piece_y = None, None
                             self.show_board(board, turn, is_check)
-        #TODO: Add input for pawn promotions
 
     def run(self, board: list, turn: int, is_checked: bool,
             possible_moves: list | None = None) -> tuple[int, int, int] | None:
@@ -101,3 +146,46 @@ class Window:
         if self._mode > 0:
             return self.get_move(board, turn, possible_moves, is_checked)
         return None
+
+    def finished(self, winner: str, board: list, turn: int, is_check: bool) -> bool:
+        self.show_board(board, turn, is_check)
+
+        font = pygame.font.SysFont('Corbel', 25)
+        font_winner = pygame.font.SysFont('Corbel', 40)
+        text_restart = font.render('Restart' , True , (0, 0, 0))
+        text_quit = font.render('Quit' , True , (0, 0, 0))
+        text_winner_upper = font_winner.render(winner, True, (255, 255, 255))
+        text_winner_lower = font_winner.render("has won", True, (255, 255, 255))
+
+        pygame.draw.rect(self._window, (0, 0, 0), (3 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
+                                                   2 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))
+        self._window.blit(text_winner_upper, (3.45 * FIELD_WIDTH, 3.05 * FIELD_WIDTH))
+        self._window.blit(text_winner_lower, (3.35 * FIELD_WIDTH, 3.45 * FIELD_WIDTH))
+        pygame.draw.rect(self._window, (255, 255, 255), (3 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+        self._window.blit(text_restart, (3.125 * FIELD_WIDTH, 4.4 * FIELD_WIDTH))
+        pygame.draw.rect(self._window, (255, 255, 255), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+        self._window.blit(text_quit, (4.275 * FIELD_WIDTH, 4.4 * FIELD_WIDTH))
+        pygame.draw.line(self._window, (0, 0, 0), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                         (4 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+        pygame.display.update()
+
+        while True:
+            pygame.time.delay(50)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = pygame.mouse.get_pos()
+                    x = x // FIELD_WIDTH
+                    y = y // FIELD_WIDTH
+
+                    if y != 4:
+                        continue
+
+                    if x == 3:
+                        return True
+                    elif x == 4:
+                        pygame.quit()
+                        sys.exit()

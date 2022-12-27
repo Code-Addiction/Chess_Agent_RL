@@ -13,18 +13,23 @@ class Game:
         self._draw = draw
         self._window = None
         if self._draw:
-            self.window = Window(self._mode)
+            self._window = Window(self._mode)
 
     def reset(self) -> None:
         self._board.reset()
+        self._turn = 0
         if self._draw:
             self._window = Window(self._mode)
 
     def run(self) -> None:
         while not self._board.is_game_over():
-            move = self.window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
+            move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
             self._board.push_san(move)
             self._turn = (self._turn + 1) % 2
+
+        if self._window.finished('WHITE' if (self._turn - 1) % 2 == 0 else 'BLACK', self.get_board(), self._turn, True):
+            self.reset()
+            self.run()
 
     def get_board(self) -> list:
         return [[piece for piece in row.strip().split(' ')] for row in str(self._board).strip().split('\n')]
