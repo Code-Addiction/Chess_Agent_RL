@@ -114,8 +114,12 @@ class Window:
                             promotion_x, promotion_y = x, y
                             promotion_active = True
 
-                            pygame.draw.rect(self._window, (0, 0, 0), (2 * FIELD_WIDTH - 10, 4 * FIELD_WIDTH - 10,
-                                                                       4 * FIELD_WIDTH + 20, FIELD_WIDTH + 20))
+                            font = pygame.font.SysFont('Corbel', 35)
+                            text = font.render('Promote to:' , True , (255, 255, 255))
+
+                            pygame.draw.rect(self._window, (0, 0, 0), (2 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
+                                                                       4 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))
+                            self._window.blit(text, (3.15 * FIELD_WIDTH, 3.3 * FIELD_WIDTH))
                             pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
                                              (2 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
                             self._window.blit(pieces[chr(81 + turn * 32)], (2 * FIELD_WIDTH, 4 * FIELD_WIDTH))
