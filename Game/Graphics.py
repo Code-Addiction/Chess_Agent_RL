@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from Functions import convert_move, move_type_to_diff
 import pygame
 import sys
 
@@ -20,45 +21,6 @@ pieces = {'P': pygame.transform.scale(pygame.image.load('images/white_pawn.png')
           'b': pygame.transform.scale(pygame.image.load('images/black_bishop.png'), (FIELD_WIDTH, FIELD_WIDTH)),
           'q': pygame.transform.scale(pygame.image.load('images/black_queen.png'), (FIELD_WIDTH, FIELD_WIDTH)),
           'k': pygame.transform.scale(pygame.image.load('images/black_king.png'), (FIELD_WIDTH, FIELD_WIDTH))}
-
-
-def convert_move(field_x: int, field_y: int, target_x: int, target_y: int) -> int:
-    diff_x = target_x - field_x
-    diff_y = field_y - target_y
-
-    if diff_x < 0:
-        if diff_y < 0:
-            if diff_x - diff_y == 0:
-                move_type = 5 * 7 - diff_x - 1
-            else:
-                move_type = 59 - diff_x
-        elif diff_y == 0:
-            move_type = 6 * 7 - diff_x - 1
-        else:
-            if diff_y + diff_x == 0:
-                move_type = 7 * 7 - diff_x - 1
-            else:
-                move_type = 61 + diff_y
-    elif diff_x == 0:
-        if diff_y < 0:
-            move_type = 4 * 7 - diff_y - 1
-        else:
-            move_type = diff_y - 1
-    else:
-        if diff_y < 0:
-            if diff_x + diff_y == 0:
-                move_type = 3 * 7 + diff_x - 1
-            else:
-                move_type = 57 - diff_y
-        elif diff_y == 0:
-            move_type = 2 * 7 + diff_x - 1
-        else:
-            if diff_x - diff_y == 0:
-                move_type = 7 + diff_x - 1
-            else:
-                move_type = 55 + diff_x
-
-    return move_type
 
 
 class Window:
@@ -110,17 +72,16 @@ class Window:
                     if not piece_is_selected:
                         if board[y][x].isupper() != (turn == 0):
                             continue
-                        field = chr(97 + x) + str(8 - y)
-                        if field not in set([move[:2] for move in possible_moves]):
+                        if (x, y) not in set([(move_x, 7 - move_y) for move_x, move_y, _ in possible_moves]):
                             continue
                         piece_x, piece_y = x, y
                         piece_is_selected = True
-                        fields_to_move = set([move[2:] for move in possible_moves if move[:2] == field])
-                        for target_field in fields_to_move:
-                            target_x = ord(target_field[0]) - 97
-                            target_y = 8 - int(target_field[1])
-                            pygame.draw.rect(self._window, (204, 204, 0), (target_x * FIELD_WIDTH,
-                                                                           target_y * FIELD_WIDTH,
+                        possible_move_types = set([move_type for tmp_x, tmp_y, move_type in possible_moves if
+                                                   tmp_x == x and tmp_y == 7 - y])
+                        for move_type in possible_move_types:
+                            diff_x , diff_y = move_type_to_diff(move_type)
+                            pygame.draw.rect(self._window, (204, 204, 0), ((x + diff_x) * FIELD_WIDTH,
+                                                                           (y - diff_y) * FIELD_WIDTH,
                                                                            FIELD_WIDTH + 1,
                                                                            FIELD_WIDTH + 1),
                                              5)
@@ -130,32 +91,30 @@ class Window:
                         if promotion_active:
                             if y != 4:
                                 continue
-                            move = chr(97 + piece_x) + str(8 - piece_y) + chr(97 + promotion_x) + str(8 - promotion_y)
+
                             if x == 2:
-                                promotion = 'q'
-                                converted_move = convert_move(piece_x, piece_y, promotion_x, promotion_y)
+                                converted_move = convert_move(piece_x, 7 - piece_y, promotion_x, 7 - promotion_y)
                             elif x == 3:
-                                promotion = 'r'
                                 converted_move = 65 + promotion_x - piece_x
                             elif x == 4:
-                                promotion = 'b'
                                 converted_move = 68 + promotion_x - piece_x
                             elif x == 5:
-                                promotion = 'n'
                                 converted_move = 71 + promotion_x - piece_x
                             else:
                                 continue
-                            move = move + promotion
-                            if move in possible_moves:
-                                print(converted_move)
-                                return piece_x, piece_y, converted_move
+                            if (piece_x, 7 - piece_y, converted_move) in possible_moves:
+                                return piece_x, 7 - piece_y, converted_move
                             continue
-                        field = chr(97 + piece_x) + str(8 - piece_y)
-                        target_field = chr(97 + x) + str(8 - y)
-                        if field + target_field in possible_moves:
-                            move_type = convert_move(piece_x, piece_y, x, y)
-                            return piece_x, 7 - piece_y, move_type
-                        elif field + target_field in set([m[:4] for m in possible_moves]):
+
+                        move_type = convert_move(piece_x, 7 - piece_y, x, 7 - y)
+
+                        promotion_possible = False
+                        for types_moves in set([tmp_move_type for tmp_x, tmp_y, tmp_move_type in possible_moves if
+                                                tmp_x == piece_x and tmp_y == 7 - piece_y]):
+                            if types_moves > 63:
+                                promotion_possible = True
+
+                        if promotion_possible:
                             promotion_x, promotion_y = x, y
                             promotion_active = True
 
@@ -184,6 +143,8 @@ class Window:
                             pygame.draw.line(self._window, (0, 0, 0), (5 * FIELD_WIDTH, 4 * FIELD_WIDTH),
                                              (5 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
                             pygame.display.update()
+                        elif (piece_x, 7 - piece_y, move_type) in possible_moves:
+                            return piece_x, 7 - piece_y, move_type
                         else:
                             piece_is_selected = False
                             piece_x, piece_y = None, None
