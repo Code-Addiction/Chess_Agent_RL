@@ -108,43 +108,44 @@ class Window:
 
                         move_type = convert_move(piece_x, 7 - piece_y, x, 7 - y)
 
-                        promotion_possible = False
-                        for types_moves in set([tmp_move_type for tmp_x, tmp_y, tmp_move_type in possible_moves if
-                                                tmp_x == piece_x and tmp_y == 7 - piece_y]):
-                            if types_moves > 63:
-                                promotion_possible = True
+                        if (piece_x, 7 - piece_y, move_type) in possible_moves:
+                            promotion_possible = False
+                            for types_moves in set([tmp_move_type for tmp_x, tmp_y, tmp_move_type in possible_moves if
+                                                    tmp_x == piece_x and tmp_y == 7 - piece_y]):
+                                if types_moves > 63:
+                                    promotion_possible = True
 
-                        if promotion_possible:
-                            promotion_x, promotion_y = x, y
-                            promotion_active = True
+                            if promotion_possible:
+                                promotion_x, promotion_y = x, y
+                                promotion_active = True
 
-                            font = pygame.font.SysFont('Corbel', 35)
-                            text = font.render('Promote to:' , True , (255, 255, 255))
+                                font = pygame.font.SysFont('Corbel', 35)
+                                text = font.render('Promote to:' , True , (255, 255, 255))
 
-                            pygame.draw.rect(self._window, (0, 0, 0), (2 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
-                                                                       4 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))
-                            self._window.blit(text, (3.15 * FIELD_WIDTH, 3.3 * FIELD_WIDTH))
-                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
-                                             (2 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
-                            self._window.blit(pieces[chr(81 + turn * 32)], (2 * FIELD_WIDTH, 4 * FIELD_WIDTH))
-                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
-                                             (3 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
-                            self._window.blit(pieces[chr(82 + turn * 32)], (3 * FIELD_WIDTH, 4 * FIELD_WIDTH))
-                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
-                                             (4 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
-                            self._window.blit(pieces[chr(66 + turn * 32)], (4 * FIELD_WIDTH, 4 * FIELD_WIDTH))
-                            pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
-                                             (5 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
-                            self._window.blit(pieces[chr(78 + turn * 32)], (5 * FIELD_WIDTH, 4 * FIELD_WIDTH))
-                            pygame.draw.line(self._window, (0, 0, 0), (3 * FIELD_WIDTH, 4 * FIELD_WIDTH),
-                                             (3 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
-                            pygame.draw.line(self._window, (0, 0, 0), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH),
-                                             (4 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
-                            pygame.draw.line(self._window, (0, 0, 0), (5 * FIELD_WIDTH, 4 * FIELD_WIDTH),
-                                             (5 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
-                            pygame.display.update()
-                        elif (piece_x, 7 - piece_y, move_type) in possible_moves:
-                            return piece_x, 7 - piece_y, move_type
+                                pygame.draw.rect(self._window, (0, 0, 0), (2 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
+                                                                           4 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))
+                                self._window.blit(text, (3.15 * FIELD_WIDTH, 3.3 * FIELD_WIDTH))
+                                pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                                 (2 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                                self._window.blit(pieces[chr(81 + turn * 32)], (2 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                                pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                                 (3 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                                self._window.blit(pieces[chr(82 + turn * 32)], (3 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                                pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                                 (4 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                                self._window.blit(pieces[chr(66 + turn * 32)], (4 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                                pygame.draw.rect(self._window, (255, 250, 200) if (x + y) % 2 == 0 else (150, 50, 0),
+                                                 (5 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+                                self._window.blit(pieces[chr(78 + turn * 32)], (5 * FIELD_WIDTH, 4 * FIELD_WIDTH))
+                                pygame.draw.line(self._window, (0, 0, 0), (3 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                                                 (3 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+                                pygame.draw.line(self._window, (0, 0, 0), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                                                 (4 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+                                pygame.draw.line(self._window, (0, 0, 0), (5 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                                                 (5 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+                                pygame.display.update()
+                            else:
+                                return piece_x, 7 - piece_y, move_type
                         else:
                             piece_is_selected = False
                             piece_x, piece_y = None, None
@@ -199,3 +200,92 @@ class Window:
                     elif x == 4:
                         pygame.quit()
                         sys.exit()
+
+    def start(self, board: list) -> tuple[int, int]:
+        self.show_board(board, 0, False)
+
+        color = -1  # Color of the player: 0 = White, 1 = Black
+        opponent = -1  # Id of the opponent software/agent
+
+        font_color = pygame.font.SysFont('Corbel', 35)
+        font_statement = pygame.font.SysFont('Corbel', 40)
+        text_color = font_statement.render('Choose color', True, (255, 255, 255))
+        text_white = font_color.render('White', True, (0, 0, 0))
+        text_black = font_color.render('Black', True, (0, 0, 0))
+
+        pygame.draw.rect(self._window, (0, 0, 0), (3 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
+                                                   2 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))
+        self._window.blit(text_color, (2.95 * FIELD_WIDTH, 3.3 * FIELD_WIDTH))
+        pygame.draw.rect(self._window, (255, 255, 255), (3 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+        self._window.blit(text_white, (3.075 * FIELD_WIDTH, 4.35 * FIELD_WIDTH))
+        pygame.draw.rect(self._window, (255, 255, 255), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+        self._window.blit(text_black, (4.135 * FIELD_WIDTH, 4.35 * FIELD_WIDTH))
+        pygame.draw.line(self._window, (0, 0, 0), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                         (4 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+        pygame.display.update()
+
+        to_choose = True
+        while to_choose:
+            pygame.time.delay(50)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = pygame.mouse.get_pos()
+                    x = x // FIELD_WIDTH
+                    y = y // FIELD_WIDTH
+
+                    if y != 4:
+                        continue
+
+                    if x == 3:
+                        color = 0
+                        to_choose = False
+                    elif x == 4:
+                        color = 1
+                        to_choose = False
+
+        font_opponent = pygame.font.SysFont('Corbel', 25)
+        text_opponent_upper = font_statement.render('Choose', True, (255, 255, 255))
+        text_opponent_lower = font_statement.render('opponent', True, (255, 255, 255))
+        text_opponent1 = font_opponent.render('Stockfish', True, (0, 0, 0))
+        text_opponent2 = font_opponent.render('Agent', True, (0, 0, 0))
+
+        pygame.draw.rect(self._window, (0, 0, 0), (3 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
+                                                   2 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))
+        self._window.blit(text_opponent_upper, (3.35 * FIELD_WIDTH, 3.075 * FIELD_WIDTH))
+        self._window.blit(text_opponent_lower, (3.2 * FIELD_WIDTH, 3.45 * FIELD_WIDTH))
+        pygame.draw.rect(self._window, (255, 255, 255), (3 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+        self._window.blit(text_opponent1, (3.035 * FIELD_WIDTH, 4.4 * FIELD_WIDTH))
+        pygame.draw.rect(self._window, (255, 255, 255), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH, FIELD_WIDTH, FIELD_WIDTH))
+        self._window.blit(text_opponent2, (4.2 * FIELD_WIDTH, 4.4 * FIELD_WIDTH))
+        pygame.draw.line(self._window, (0, 0, 0), (4 * FIELD_WIDTH, 4 * FIELD_WIDTH),
+                         (4 * FIELD_WIDTH, 5 * FIELD_WIDTH), 5)
+        pygame.display.update()
+
+        to_choose = True
+        while to_choose:
+            pygame.time.delay(50)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = pygame.mouse.get_pos()
+                    x = x // FIELD_WIDTH
+                    y = y // FIELD_WIDTH
+
+                    if y != 4:
+                        continue
+
+                    if x == 3:
+                        opponent = 0
+                        to_choose = False
+                    elif x == 4:
+                        opponent = 1
+                        to_choose = False
+
+        return color, opponent

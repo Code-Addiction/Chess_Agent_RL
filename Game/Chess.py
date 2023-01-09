@@ -3,6 +3,7 @@ from __future__ import annotations
 import chess
 from Graphics import Window
 from Functions import convert_move
+import random
 
 
 class Game:
@@ -11,10 +12,13 @@ class Game:
         self._board = chess.Board()
         self._mode = mode
         self._turn = 0
+        self._color = -1
         self._draw = draw
         self._window = None
         if self._draw:
             self._window = Window(self._mode)
+        self._opponents = {0: self.get_moves, 1: self.get_moves}
+        self._opponent = None
 
     def reset(self) -> None:
         self._board.reset()
@@ -23,10 +27,25 @@ class Game:
             self._window = Window(self._mode)
 
     def run(self) -> None:
+        if self._mode == 1:
+            self._color, opponent_id = self._window.start(self.get_board())
+            self._opponent = self._opponents[opponent_id]
         while not self._board.is_game_over():
-            move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
-            self._board.push_san(self.move_to_str(move))
-            self._turn = (self._turn + 1) % 2
+            if self._mode == 1:
+                if self._turn == self._color:
+                    move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
+                else:
+                    opponents_move = self._opponent()
+                    chosen_move = random.randint(0, len(opponents_move) - 1)
+                    move = opponents_move[chosen_move]
+                self._board.push_san(self.move_to_str(move))
+                self._turn = (self._turn + 1) % 2
+            elif self._mode == 2:
+                move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
+                self._board.push_san(self.move_to_str(move))
+                self._turn = (self._turn + 1) % 2
+
+        self._turn = (self._turn + 1) % 2
 
         if self._window.finished('WHITE' if (self._turn - 1) % 2 == 0 else 'BLACK', self.get_board(), self._turn, True):
             self.reset()
@@ -64,31 +83,31 @@ class Game:
 
         if move_type < 7:
             target_field = chr(97 + x) + str(y + move_type + 2)
-            if move_type == 0 and self.get_board()[7 - y][x] == 'P' and y == 6:
+            if self._turn == 0 and move_type == 0 and self.get_board()[7 - y][x] == 'P' and y == 6:
                 target_field += 'q'
         elif move_type < 14:
             target_field = chr(91 + x + move_type) + str(y + move_type - 5)
-            if move_type == 7 and self.get_board()[7 - y][x] == 'P' and y == 6:
+            if self._turn == 0 and move_type == 7 and self.get_board()[7 - y][x] == 'P' and y == 6:
                 target_field += 'q'
         elif move_type < 21:
             target_field = chr(84 + x + move_type) + str(y + 1)
         elif move_type < 28:
             target_field = chr(77 + x + move_type) + str(y +  21 - move_type)
-            if move_type == 21 and self.get_board()[y][7 - x] == 'p' and y == 1:
+            if self._turn == 1 and move_type == 21 and self.get_board()[y][7 - x] == 'p' and y == 1:
                 target_field += 'q'
         elif move_type < 35:
             target_field = chr(97 + x) + str(y + 28 - move_type)
-            if move_type == 28 and self.get_board()[y][7 - x] == 'p' and y == 1:
+            if self._turn == 1 and move_type == 28 and self.get_board()[y][7 - x] == 'p' and y == 1:
                 target_field += 'q'
         elif move_type < 42:
             target_field = chr(131 + x - move_type) + str(y + 35 - move_type)
-            if move_type == 35 and self.get_board()[y][7 - x] == 'p' and y == 1:
+            if self._turn == 1 and move_type == 35 and self.get_board()[y][7 - x] == 'p' and y == 1:
                 target_field += 'q'
         elif move_type < 49:
             target_field = chr(138 + x - move_type) + str(y + 1)
         elif move_type < 56:
             target_field = chr(145 + x - move_type) + str(y + move_type - 47)
-            if move_type == 49 and self.get_board()[7 - y][x] == 'P' and y == 6:
+            if self._turn == 0 and move_type == 49 and self.get_board()[7 - y][x] == 'P' and y == 6:
                 target_field += 'q'
         elif move_type < 58:
             x_move = move_type - 55
@@ -146,5 +165,5 @@ class Game:
 
 
 if __name__ == '__main__':
-    game = Game(2, True)
+    game = Game(1, True)
     game.run()
