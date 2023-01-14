@@ -4,27 +4,79 @@ import chess
 from Graphics import Window
 from Functions import convert_move
 import random
+from ray import rllib
+import gymnasium as gym
+import numpy as np
 
 
-class Game:
-    #TODO: Implement gym interface for multi-agent training
-    def __init__(self, mode: int, draw: bool = False) -> None:
+MIN_OBSERVATION_SPACE = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8)
+MAX_OBSERVATION_SPACE = np.asarray([12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 100, 75, 4, 4, 1], dtype=np.uint8)
+
+
+class Game(rllib.env.multi_agent_env.MultiAgentEnv):
+    def __init__(self, mode: int, draw: bool = False, win_reward: int = 100) -> None:
+        super().__init__()
         self._board = chess.Board()
         self._mode = mode
         self._turn = 0
         self._color = -1
+        self._win_reward = win_reward
         self._draw = draw
         self._window = None
         if self._draw:
             self._window = Window(self._mode)
         self._opponents = {0: self.get_moves, 1: self.get_moves}
         self._opponent = None
+        self.action_space = gym.spaces.Box(shape=(3,), low=np.asarray([0, 0, 0], dtype=np.uint8),
+                                           high=np.asarray([7, 7, 73], dtype=np.uint8),
+                                           dtype=np.uint8)  # Alphazero paper + 1 for draw
+        # 64 fields, 2 counters (moves, half moves since pawn move or capture), 2 castling right (for each color),
+        # 1 can claim draw by repetition
+        self.observation_shape = (69,)
+        self.observation_space = gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                                high=MAX_OBSERVATION_SPACE,
+                                                dtype=np.uint8)
+        self.state = self.get_state()
 
-    def reset(self) -> None:
+    def reset(self) -> dict:
         self._board.reset()
         self._turn = 0
         if self._draw:
             self._window = Window(self._mode)
+        return self.get_state()
+
+    def step(self, actions:dict) -> tuple[dict, dict, dict, dict]:
+        claim_draw = False
+        for color, move in actions.items():
+            if color == 'white' and self._turn == 0 or color == 'black' and self._turn == 1:
+                _, _, move_type = move
+                if move_type == 73:
+                    if self._board.can_claim_draw():
+                        claim_draw = True
+                        continue
+                self._board.push_san(self.move_to_str(move))
+                self._turn = (self._turn + 1) % 2
+        new_obs = self.get_state()
+        if self._board.is_game_over(claim_draw=claim_draw):
+            outcome = self._board.outcome(claim_draw=claim_draw)
+            if outcome.winner is None:
+                rewards = {'white': 0, 'black': 0}
+            elif outcome.winner:
+                rewards = {'white': self._win_reward, 'black': -self._win_reward}
+            else:
+                rewards = {'white': -self._win_reward, 'black': self._win_reward}
+            dones = {'__all__': True}
+        else:
+            rewards = {'white': 0, 'black': 0}
+            dones = {'__all__': False}
+        infos = {}
+        return new_obs, rewards, dones, infos
 
     def run(self) -> None:
         if self._mode == 1:
@@ -47,7 +99,8 @@ class Game:
 
         self._turn = (self._turn + 1) % 2
 
-        if self._window.finished('WHITE' if (self._turn - 1) % 2 == 0 else 'BLACK', self.get_board(), self._turn, True):
+        if self._window.finished('WHITE' if (self._turn - 1) % 2 == 0 else 'BLACK',
+                                 self.get_board(), self._turn, False):
             self.reset()
             self.run()
 
@@ -58,6 +111,19 @@ class Game:
 
     def get_moves(self) -> list:
         return [self.move_from_str(str(move)) for move in self._board.legal_moves]
+
+    def get_state(self) -> dict:
+        #TODO: Implement
+        color = 'white' if self._turn == 0 else 'black'
+        fields = []
+        counters = [self._board.fullmove_number, self._board.halfmove_clock]
+        castling = []
+        can_claim_draw_repetition = [self._board.can_claim_threefold_repetition()]
+        return {color: np.asarray(fields + counters + castling + can_claim_draw_repetition, dtype=np.uint8)}
+
+    def get_attention_mask(self):
+        #TODO: Implement
+        pass
 
     def move_to_str(self, move: tuple[int, int, int] | None) -> str:
         if move is None:
@@ -165,5 +231,5 @@ class Game:
 
 
 if __name__ == '__main__':
-    game = Game(1, True)
+    game = Game(2, True)
     game.run()

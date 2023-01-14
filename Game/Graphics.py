@@ -53,6 +53,7 @@ class Window:
         pygame.display.update()
 
     def get_move(self, board: list, turn: int, possible_moves: list, is_check: bool) -> tuple[int, int, int]:
+        #TODO: Add possibility to claim draw
         piece_is_selected = False
         piece_x, piece_y = None, None
         promotion_active = False
