@@ -206,7 +206,7 @@ class Window:
         self.show_board(board, 0, False)
 
         color = -1  # Color of the player: 0 = White, 1 = Black
-        opponent = -1  # Id of the opponent software/agent
+        opponent = -1  # ID of the opponent software/agent
 
         font_color = pygame.font.SysFont('Corbel', 35)
         font_statement = pygame.font.SysFont('Corbel', 40)

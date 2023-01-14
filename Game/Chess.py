@@ -17,6 +17,10 @@ MAX_OBSERVATION_SPACE = np.asarray([12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 
                                     12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 100, 75, 4, 4, 1], dtype=np.uint8)
+CONVERSION_DICT = {0: {'.': 0, 'P': 1, 'N': 2, 'B': 3, 'R': 4, 'Q': 5, 'K': 6,
+                       'p': 7, 'n': 8, 'b': 9, 'r': 10, 'q': 11, 'k': 12},
+                   1: {'.': 0, 'p': 1, 'n': 2, 'b': 3, 'r': 4, 'q': 5, 'k': 6,
+                       'P': 7, 'N': 8, 'B': 9, 'R': 10, 'Q': 11, 'K': 12}}
 
 
 class Game(rllib.env.multi_agent_env.MultiAgentEnv):
@@ -33,15 +37,16 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             self._window = Window(self._mode)
         self._opponents = {0: self.get_moves, 1: self.get_moves}
         self._opponent = None
-        self.action_space = gym.spaces.Box(shape=(3,), low=np.asarray([0, 0, 0], dtype=np.uint8),
-                                           high=np.asarray([7, 7, 73], dtype=np.uint8),
-                                           dtype=np.uint8)  # Alphazero paper + 1 for draw
+        self.action_space = gym.spaces.Discrete(4673)  # Alphazero paper (8 x 8 x 73) + 1 for draw
         # 64 fields, 2 counters (moves, half moves since pawn move or capture), 2 castling right (for each color),
         # 1 can claim draw by repetition
         self.observation_shape = (69,)
-        self.observation_space = gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
-                                                high=MAX_OBSERVATION_SPACE,
-                                                dtype=np.uint8)
+        self.observation_space = gym.spaces.Dict({
+            "action_mask": gym.spaces.Box(0, 1, shape=(4673,)),
+            'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                    high=MAX_OBSERVATION_SPACE,
+                                    dtype=np.uint8)})
+
         self.state = self.get_state()
 
     def reset(self) -> dict:
@@ -55,11 +60,10 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         claim_draw = False
         for color, move in actions.items():
             if color == 'white' and self._turn == 0 or color == 'black' and self._turn == 1:
-                _, _, move_type = move
-                if move_type == 73:
+                if move == 4672:
                     if self._board.can_claim_draw():
                         claim_draw = True
-                        continue
+                    continue
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
         new_obs = self.get_state()
@@ -113,23 +117,63 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         return [self.move_from_str(str(move)) for move in self._board.legal_moves]
 
     def get_state(self) -> dict:
-        #TODO: Implement
         color = 'white' if self._turn == 0 else 'black'
         fields = []
+        board = self.get_board()
+        for row in range(8):
+            for column in range(8):
+                fields.append(CONVERSION_DICT[self._turn][board[row][column]])
+
         counters = [self._board.fullmove_number, self._board.halfmove_clock]
-        castling = []
+
+        player = chess.WHITE if self._turn == 0 else chess.BLACK
+        opponent = chess.BLACK if self._turn == 0 else chess.WHITE
+        king_side_castling_player = self._board.has_kingside_castling_rights(player)
+        king_side_castling_opponent = self._board.has_kingside_castling_rights(opponent)
+        queen_side_castling_player = self._board.has_queenside_castling_rights(player)
+        queen_side_castling_opponent = self._board.has_queenside_castling_rights(opponent)
+
+        if king_side_castling_player and queen_side_castling_player:
+            castling_player = 3
+        elif king_side_castling_player:
+            castling_player = 1
+        elif queen_side_castling_player:
+            castling_player = 2
+        else:
+            castling_player = 0
+
+        if king_side_castling_opponent and queen_side_castling_opponent:
+            castling_opponent = 3
+        elif king_side_castling_opponent:
+            castling_opponent = 1
+        elif queen_side_castling_opponent:
+            castling_opponent = 2
+        else:
+            castling_opponent = 0
+
+        castling = [castling_player, castling_opponent]
         can_claim_draw_repetition = [self._board.can_claim_threefold_repetition()]
-        return {color: np.asarray(fields + counters + castling + can_claim_draw_repetition, dtype=np.uint8)}
 
-    def get_attention_mask(self):
+        state = np.asarray(fields + counters + castling + can_claim_draw_repetition, dtype=np.uint8)
+
+        return {color: {"action_mask": self.get_action_mask(), "state": state}}
+
+    def get_action_mask(self) -> np.ndarray:
         #TODO: Implement
-        pass
+        action_mask = []
+        return np.asarray(action_mask, dtype=np.uint8)
 
-    def move_to_str(self, move: tuple[int, int, int] | None) -> str:
+    def move_to_str(self, move: tuple[int, int, int] | int | None) -> str:
         if move is None:
             return ''
 
-        x, y, move_type = move
+        try:
+            x, y, move_type = move
+        except TypeError:
+            x = move // 584
+            move = move % 584
+            y = move // 73
+            move_type = move % 73
         y_promotion = 1
         if self._turn == 1:
             x = 7 - x
