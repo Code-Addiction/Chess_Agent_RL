@@ -54,6 +54,7 @@ class Window:
 
     def get_move(self, board: list, turn: int, possible_moves: list, is_check: bool) -> tuple[int, int, int]:
         #TODO: Add possibility to claim draw
+        #TODO: Fix error with knight moves (gives sometimes wrong moves when clicked on invalid field and knight selected)
         piece_is_selected = False
         piece_x, piece_y = None, None
         promotion_active = False
