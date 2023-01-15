@@ -42,7 +42,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         # 1 can claim draw by repetition
         self.observation_shape = (69,)
         self.observation_space = gym.spaces.Dict({
-            "action_mask": gym.spaces.Box(0, 1, shape=(4673,)),
+            "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
             'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
                                     high=MAX_OBSERVATION_SPACE,
                                     dtype=np.uint8)})
@@ -159,9 +159,21 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         return {color: {"action_mask": self.get_action_mask(), "state": state}}
 
     def get_action_mask(self) -> np.ndarray:
-        #TODO: Implement
-        action_mask = []
-        return np.asarray(action_mask, dtype=np.uint8)
+        action_mask = np.zeros(shape=(4673,), dtype=np.uint8)
+        moves = self.get_moves()
+
+        base = 0
+        for x in range(8):
+            for y in range(8):
+                for move_type in range(73):
+                    if (x, y, move_type) in moves:
+                        action_mask[base + move_type] = 1
+                base = base + 73
+
+        if self._board.can_claim_draw():
+            action_mask[4672] = 1
+
+        return action_mask
 
     def move_to_str(self, move: tuple[int, int, int] | int | None) -> str:
         if move is None:
@@ -249,11 +261,10 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             target_field = chr(97 + x) + str(y + 1 + y_promotion) + 'n'
         else:
             target_field = chr(98 + x) + str(y + 1 + y_promotion) + 'n'
-
         return field  + target_field
 
 
-    def move_from_str(self, move: str) -> tuple[int, int, int]:
+    def move_from_str(self, move: str, as_int: bool = False) -> tuple[int, int, int] | int:
         x = ord(move[0]) - 97
         y = int(move[1]) - 1
         target_x = ord(move[2]) - 97
@@ -271,6 +282,9 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 move_type = 68 + target_x - x
             elif move[4] == 'n':
                 move_type = 71 + target_x - x
+
+        if as_int:
+            return x * 584 + y * 73 + move_type
         return x, y, move_type
 
 
