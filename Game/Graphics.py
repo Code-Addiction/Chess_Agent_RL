@@ -160,15 +160,19 @@ class Window:
             return self.get_move(board, turn, possible_moves, is_checked)
         return None
 
-    def finished(self, winner: str, board: list, turn: int, is_check: bool) -> bool:
+    def finished(self, winner: str | None, board: list, turn: int, is_check: bool) -> bool:
         self.show_board(board, turn, is_check)
 
         font = pygame.font.SysFont('Corbel', 25)
         font_winner = pygame.font.SysFont('Corbel', 40)
         text_restart = font.render('Restart' , True , (0, 0, 0))
         text_quit = font.render('Quit' , True , (0, 0, 0))
-        text_winner_upper = font_winner.render(winner, True, (255, 255, 255))
-        text_winner_lower = font_winner.render("has won", True, (255, 255, 255))
+        if winner is None:
+            text_winner_upper = font_winner.render("DRAW", True, (255, 255, 255))
+            text_winner_lower = font_winner.render("", True, (255, 255, 255))
+        else:
+            text_winner_upper = font_winner.render(winner, True, (255, 255, 255))
+            text_winner_lower = font_winner.render("has won", True, (255, 255, 255))
 
         pygame.draw.rect(self._window, (0, 0, 0), (3 * FIELD_WIDTH - 10, 3 * FIELD_WIDTH - 10,
                                                    2 * FIELD_WIDTH + 20, 2 * FIELD_WIDTH + 20))

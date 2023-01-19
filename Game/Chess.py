@@ -103,8 +103,15 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
 
         self._turn = (self._turn + 1) % 2
 
-        if self._window.finished('WHITE' if (self._turn - 1) % 2 == 0 else 'BLACK',
-                                 self.get_board(), self._turn, False):
+        outcome = self._board.outcome()
+        if outcome.winner is None:
+            winner = None
+        elif outcome.winner:
+            winner = 'WHITE'
+        else:
+            winner = 'BLACK'
+
+        if self._window.finished(winner, self.get_board(), self._turn, False):
             self.reset()
             self.run()
 
