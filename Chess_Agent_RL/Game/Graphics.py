@@ -1,26 +1,28 @@
 from __future__ import annotations
 
-from Functions import convert_move, move_type_to_diff
+from Chess_Agent_RL.Game.Functions import convert_move, move_type_to_diff
 import pygame
 import sys
 
 
 pygame.init()
+#TODO: Change to relativ path
+path = 'D:/Studium/Theorie/Studienarbeit/Chess_Agent_RL/Chess_Agent_RL/Game/'
 
 WIDTH = 800
 FIELD_WIDTH = WIDTH // 8
-pieces = {'P': pygame.transform.scale(pygame.image.load('images/white_pawn.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'R': pygame.transform.scale(pygame.image.load('images/white_rook.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'N': pygame.transform.scale(pygame.image.load('images/white_knight.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'B': pygame.transform.scale(pygame.image.load('images/white_bishop.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'Q': pygame.transform.scale(pygame.image.load('images/white_queen.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'K': pygame.transform.scale(pygame.image.load('images/white_king.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'p': pygame.transform.scale(pygame.image.load('images/black_pawn.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'r': pygame.transform.scale(pygame.image.load('images/black_rook.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'n': pygame.transform.scale(pygame.image.load('images/black_knight.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'b': pygame.transform.scale(pygame.image.load('images/black_bishop.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'q': pygame.transform.scale(pygame.image.load('images/black_queen.png'), (FIELD_WIDTH, FIELD_WIDTH)),
-          'k': pygame.transform.scale(pygame.image.load('images/black_king.png'), (FIELD_WIDTH, FIELD_WIDTH))}
+pieces = {'P': pygame.transform.scale(pygame.image.load(path + 'images/white_pawn.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'R': pygame.transform.scale(pygame.image.load(path + 'images/white_rook.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'N': pygame.transform.scale(pygame.image.load(path + 'images/white_knight.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'B': pygame.transform.scale(pygame.image.load(path + 'images/white_bishop.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'Q': pygame.transform.scale(pygame.image.load(path + 'images/white_queen.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'K': pygame.transform.scale(pygame.image.load(path + 'images/white_king.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'p': pygame.transform.scale(pygame.image.load(path + 'images/black_pawn.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'r': pygame.transform.scale(pygame.image.load(path + 'images/black_rook.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'n': pygame.transform.scale(pygame.image.load(path + 'images/black_knight.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'b': pygame.transform.scale(pygame.image.load(path + 'images/black_bishop.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'q': pygame.transform.scale(pygame.image.load(path + 'images/black_queen.png'), (FIELD_WIDTH, FIELD_WIDTH)),
+          'k': pygame.transform.scale(pygame.image.load(path + 'images/black_king.png'), (FIELD_WIDTH, FIELD_WIDTH))}
 
 
 class Window:

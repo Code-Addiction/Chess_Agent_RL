@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+import ray
+from ray.rllib.agents import ppo
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
+from ray.rllib.policy.policy import PolicySpec
+from ray.rllib.examples.policy.random_policy import RandomPolicy
+from ray.tune.logger import pretty_print
+from Chess_Agent_RL.Models.Action_Mask_Model import ActionMaskModel
+from Chess_Agent_RL.Game.Chess import Game
+import numpy as np
+import gym
+from Chess_Agent_RL.Game.Chess import MIN_OBSERVATION_SPACE, MAX_OBSERVATION_SPACE
+
+
+class SelfPlayCallback(DefaultCallbacks):
+    def __init__(self):
+        super().__init__()
+        # 0=RandomPolicy, 1=1st main policy snapshot,
+        # 2=2nd main policy snapshot, etc..
+        self.current_opponent = 0
+        self.win_rate_threshold = 0.95
+
+    def on_train_result(self, *, algorithm, result, **kwargs):
+        # Get the win rate for the train batch.
+        # Note that normally, one should set up a proper evaluation config,
+        # such that evaluation always happens on the already updated policy,
+        # instead of on the already used train_batch.
+        main_rew = result["hist_stats"].pop("policy_main_reward")
+        opponent_rew = list(result["hist_stats"].values())[0]
+        assert len(main_rew) == len(opponent_rew)
+        #TODO: Add evaluation config and use results of that
+        won = 0
+        for r_main, r_opponent in zip(main_rew, opponent_rew):
+            if r_main > r_opponent:
+                won += 1
+        win_rate = won / len(main_rew)
+        result["win_rate"] = win_rate
+        print(f"Iter={algorithm.iteration} win-rate={win_rate} -> ", end="")
+        # If win rate is good -> Snapshot current policy and play against
+        # it next, keeping the snapshot fixed and only improving the "main"
+        # policy.
+        if win_rate > self.win_rate_threshold:
+            self.current_opponent += 1
+            new_pol_id = f"main_v{self.current_opponent}"
+
+            # Re-define the mapping function, such that "main" is forced
+            # to play against any of the previously played policies
+            # (excluding "random").
+            def policy_mapping_fn(agent_id, episode, worker, **kwargs):
+                # agent_id = [0|1] -> policy depends on episode ID
+                # This way, we make sure that both policies sometimes play
+                # (start player) and sometimes agent1 (player to move 2nd).
+                return (
+                    "chess_agent"
+                    if episode.episode_id % 2 == agent_id
+                    else "main_v{}".format(
+                        np.random.choice(list(range(1, self.current_opponent + 1)))
+                    )
+                )
+
+            new_policy = algorithm.add_policy(
+                policy_id=new_pol_id,
+                policy_cls=type(algorithm.get_policy("chess_agent")),
+                policy_mapping_fn=policy_mapping_fn,
+            )
+
+            # Set the weights of the new policy to the main policy.
+            # We'll keep training the main policy, whereas `new_pol_id` will
+            # remain fixed.
+            main_state = algorithm.get_policy("chess_agent").get_state()
+            new_policy.set_state(main_state)
+            # We need to sync the just copied local weights (from main policy)
+            # to all the remote workers as well.
+            algorithm.workers.sync_weights()
+
+        # +2 = main + random
+        result["league_size"] = self.current_opponent + 2
+
+
+class PPOAgent:
+    def __init__(self, num_gpus: float = 0.75, num_cpus: int | None = None, eager_tracing: bool = True):
+        self.num_cpus = num_cpus
+
+        """observation_space=gym.spaces.Dict({
+                        'white': gym.spaces.Dict({
+                            "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
+                            'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                                    high=MAX_OBSERVATION_SPACE,
+                                                    dtype=np.uint8)}),
+                        'black': gym.spaces.Dict({
+                            "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
+                            'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                                    high=MAX_OBSERVATION_SPACE,
+                                                    dtype=np.uint8)})}),"""
+
+        """action_space=gym.spaces.Dict({'white': gym.spaces.Discrete(4673),
+                                                  'black': gym.spaces.Discrete(4673)})"""
+
+        """, observation_space=gym.spaces.Dict({
+                            "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
+                            'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                                    high=MAX_OBSERVATION_SPACE,
+                                                    dtype=np.uint8)}),
+                    action_space=gym.spaces.Discrete(4673))"""
+
+        self.config = (
+            ppo.PPOConfig()
+            .environment(Game, disable_env_checking=True)
+            .framework('tf2', eager_tracing=eager_tracing)
+            .callbacks(SelfPlayCallback)
+            .training(model={"custom_model": ActionMaskModel})
+            .multi_agent(
+                policies={
+                "chess_agent": PolicySpec(),
+                    "random": PolicySpec(policy_class=RandomPolicy)},
+            policy_mapping_fn=lambda agent_id, episode, worker, **kwargs:
+            'chess_agent' if episode.episode_id % 2 == agent_id else 'random',
+            policies_to_train=["chess_agent"],)
+            .resources(num_gpus=num_gpus)
+        )
+
+        self.algo = self.config.build()
+
+
+    def training(self, stop_iters: int = 10, stop_timesteps: int = 300):
+        ray.shutdown()
+        ray.init(num_cpus=self.num_cpus)
+        print("Starting training")
+        # run manual training loop and print results after each iteration
+        for i in range(stop_iters):
+            print("Loop", i)
+            result = self.algo.train()
+            print(pretty_print(result))
+            # stop training if the target train steps or reward are reached
+            if result["timesteps_total"] >= stop_timesteps:
+                break
+
+        ray.shutdown()
+
+
+if __name__ == '__main__':
+    agent = PPOAgent()
+    agent.training()

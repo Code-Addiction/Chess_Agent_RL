@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import chess
-from Graphics import Window
-from Functions import convert_move
+from Chess_Agent_RL.Game.Graphics import Window
+from Chess_Agent_RL.Game.Functions import convert_move
 import random
 from ray import rllib
-import gymnasium as gym
+import gym
 import numpy as np
 
 
@@ -24,7 +24,7 @@ CONVERSION_DICT = {0: {'.': 0, 'P': 1, 'N': 2, 'B': 3, 'R': 4, 'Q': 5, 'K': 6,
 
 
 class Game(rllib.env.multi_agent_env.MultiAgentEnv):
-    def __init__(self, mode: int, draw: bool = False, win_reward: int = 100) -> None:
+    def __init__(self, mode: int = 0, draw: bool = False, win_reward: int = 100) -> None:
         super().__init__()
         self._board = chess.Board()
         self._mode = mode
@@ -37,15 +37,30 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             self._window = Window(self._mode)
         self._opponents = {0: self.get_moves, 1: self.get_moves}
         self._opponent = None
-        self.action_space = gym.spaces.Discrete(4673)  # Alphazero paper (8 x 8 x 73) + 1 for draw
+        # Alphazero paper (8 x 8 x 73) + 1 for draw
+        """self.action_space = gym.spaces.Dict({'white': gym.spaces.Discrete(4673),
+                                             'black': gym.spaces.Discrete(4673)})"""
+        self.action_space = gym.spaces.Discrete(4673)
         # 64 fields, 2 counters (moves, half moves since pawn move or capture), 2 castling right (for each color),
         # 1 can claim draw by repetition
         self.observation_shape = (69,)
+        """self.observation_space = gym.spaces.Dict({
+            'white': gym.spaces.Dict({
+                "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
+                'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                        high=MAX_OBSERVATION_SPACE,
+                                        dtype=np.uint8)}),
+            'black': gym.spaces.Dict({
+                "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
+                'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
+                                        high=MAX_OBSERVATION_SPACE,
+                                        dtype=np.uint8)})})"""
         self.observation_space = gym.spaces.Dict({
             "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
             'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
                                     high=MAX_OBSERVATION_SPACE,
                                     dtype=np.uint8)})
+        self._agent_ids = {'white', 'black'}
 
         self.state = self.get_state()
 
@@ -67,6 +82,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
         new_obs = self.get_state()
+        color = 'white' if self._turn == 0 else 'black'
         if self._board.is_game_over(claim_draw=claim_draw):
             outcome = self._board.outcome(claim_draw=claim_draw)
             if outcome.winner is None:
@@ -75,10 +91,10 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 rewards = {'white': self._win_reward, 'black': -self._win_reward}
             else:
                 rewards = {'white': -self._win_reward, 'black': self._win_reward}
-            dones = {'__all__': True}
+            dones = {color: True, '__all__': True}
         else:
             rewards = {'white': 0, 'black': 0}
-            dones = {'__all__': False}
+            dones = {color: False, '__all__': False}
         infos = {}
         return new_obs, rewards, dones, infos
 
