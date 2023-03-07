@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import chess
+import chess.polyglot
+import chess.syzygy
 from Chess_Agent_RL.Game.Graphics import Window
 from Chess_Agent_RL.Game.Functions import convert_move
 import random
@@ -12,11 +14,11 @@ import numpy as np
 MIN_OBSERVATION_SPACE = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8)
+                                    0, 0, 0, 0, 0, 0], dtype=np.uint8)
 MAX_OBSERVATION_SPACE = np.asarray([12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 202, 76, 4, 4, 1], dtype=np.uint8)
+                                    12, 12, 12, 12, 4, 4], dtype=np.uint8)
 CONVERSION_DICT = {0: {'.': 0, 'P': 1, 'N': 2, 'B': 3, 'R': 4, 'Q': 5, 'K': 6,
                        'p': 7, 'n': 8, 'b': 9, 'r': 10, 'q': 11, 'k': 12},
                    1: {'.': 0, 'p': 1, 'n': 2, 'b': 3, 'r': 4, 'q': 5, 'k': 6,
@@ -24,7 +26,7 @@ CONVERSION_DICT = {0: {'.': 0, 'P': 1, 'N': 2, 'B': 3, 'R': 4, 'Q': 5, 'K': 6,
 
 
 class Game(rllib.env.multi_agent_env.MultiAgentEnv):
-    def __init__(self, mode: int = 0, draw: bool = False, win_reward: int = 100) -> None:
+    def __init__(self, mode: int = 0, draw: bool = False, win_reward: int = 1000) -> None:
         super().__init__()
         self._board = chess.Board()
         self._mode = mode
@@ -37,19 +39,20 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             self._window = Window(self._mode)
         self._opponents = {0: self.get_moves, 1: '../Agents/Checkpoints/PPO'}
         self._opponent = None
-        # Alphazero paper (8 x 8 x 73) + 1 for draw
-        self.action_space = gym.spaces.Discrete(4673)
-        # 64 fields, 2 counters (moves, half moves since pawn move or capture), 2 castling right (for each color),
-        # 1 can claim draw by repetition
-        self.observation_shape = (69,)
+        # Alphazero paper (8 x 8 x 73)
+        self.action_space = gym.spaces.Discrete(4672)
+        # 64 fields, 2 castling right (for each color)
+        self.observation_shape = (66,)
         self.observation_space = gym.spaces.Dict({
-            "action_mask": gym.spaces.Box(0, 1, shape=(4673,), dtype=np.uint8),
+            "action_mask": gym.spaces.Box(0, 1, shape=(4672,), dtype=np.uint8),
             'state': gym.spaces.Box(low=MIN_OBSERVATION_SPACE,
                                     high=MAX_OBSERVATION_SPACE,
                                     dtype=np.uint8)})
         self._agent_ids = {'white', 'black'}
 
         self.state = self.get_state()
+        self._opening_book = chess.polyglot.MemoryMappedReader('resources/opening_book.bin')
+        self._endgame_table = chess.syzygy.open_tablebase('resources/endgame_table')
 
     def reset(self) -> dict:
         self._board.reset()
@@ -59,20 +62,14 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         return self.get_state()
 
     def step(self, actions:dict) -> tuple[dict, dict, dict, dict]:
-        claim_draw = False
         for color, move in actions.items():
             if color == 'white' and self._turn == 0 or color == 'black' and self._turn == 1:
-                if move == 4672:
-                    if self._board.can_claim_draw():
-                        claim_draw = True
-                    continue
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
         new_obs = self.get_state()
         color = 'white' if self._turn == 0 else 'black'
-        if (self._board.is_game_over(claim_draw=claim_draw) or new_obs[color]['state'][64] > 200
-                or new_obs[color]['state'][65] >= 75):
-            outcome = self._board.outcome(claim_draw=claim_draw)
+        if self._board.is_game_over(claim_draw=True):
+            outcome = self._board.outcome(claim_draw=True)
             if outcome is None or outcome.winner is None:
                 rewards = {'white': 0, 'black': 0}
             elif outcome.winner:
@@ -95,6 +92,9 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 checkpoint_path = self._opponent
                 self._opponent = PPOAgent.restore(checkpoint_path)
         while not self._board.is_game_over():
+            print(self.get_opening_moves())
+            print('DTZ:', self._endgame_table.get_dtz(self._board))
+            print('WDL:', self._endgame_table.get_wdl(self._board))
             if self._mode == 1:
                 if self._turn == self._color:
                     move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
@@ -141,8 +141,6 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             for column in range(8):
                 fields.append(CONVERSION_DICT[self._turn][board[row][column]])
 
-        counters = [self._board.fullmove_number, self._board.halfmove_clock]
-
         player = chess.WHITE if self._turn == 0 else chess.BLACK
         opponent = chess.BLACK if self._turn == 0 else chess.WHITE
         king_side_castling_player = self._board.has_kingside_castling_rights(player)
@@ -169,14 +167,13 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             castling_opponent = 0
 
         castling = [castling_player, castling_opponent]
-        can_claim_draw_repetition = [self._board.can_claim_threefold_repetition()]
 
-        state = np.asarray(fields + counters + castling + can_claim_draw_repetition, dtype=np.uint8)
+        state = np.asarray(fields + castling, dtype=np.uint8)
 
         return {color: {"action_mask": self.get_action_mask(), "state": state}}
 
     def get_action_mask(self) -> np.ndarray:
-        action_mask = np.zeros(shape=(4673,), dtype=np.float32)
+        action_mask = np.zeros(shape=(4672,), dtype=np.float32)
         moves = self.get_moves()
 
         base = 0
@@ -187,10 +184,10 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                         action_mask[base + move_type] = 1
                 base = base + 73
 
-        if self._board.can_claim_draw():
-            action_mask[4672] = 1
-
         return action_mask
+
+    def get_opening_moves(self):
+        return [str(infos.move) for infos in self._opening_book.find_all(self._board)]
 
     def move_to_str(self, move: tuple[int, int, int] | int | None) -> str:
         if move is None:

@@ -29,7 +29,7 @@ class SelfPlayCallback(DefaultCallbacks):
         #TODO: Add evaluation config and use results of that
         won = 0
         for r_main in main_rew:
-            if r_main == 100:
+            if r_main == 1000:
                 won += 1
         win_rate = won / len(main_rew)
         result["win_rate"] = win_rate
@@ -127,4 +127,4 @@ class PPOAgent:
 
 if __name__ == '__main__':
     agent = PPOAgent()
-    agent.training(5)
+    agent.training(1000)
