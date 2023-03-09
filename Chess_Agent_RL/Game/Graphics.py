@@ -3,11 +3,11 @@ from __future__ import annotations
 from Chess_Agent_RL.Game.Functions import convert_move, move_type_to_diff
 import pygame
 import sys
+import os
 
 
 pygame.init()
-#TODO: Change to relativ path
-path = 'D:/Studium/Theorie/Studienarbeit/Chess_Agent_RL/Chess_Agent_RL/Game/'
+path = os.path.dirname(__file__).replace('\\', '/') + '/'
 
 WIDTH = 800
 FIELD_WIDTH = WIDTH // 8

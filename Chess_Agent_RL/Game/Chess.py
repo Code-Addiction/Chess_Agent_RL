@@ -6,9 +6,13 @@ import chess.syzygy
 from Chess_Agent_RL.Game.Graphics import Window
 from Chess_Agent_RL.Game.Functions import convert_move
 import random
+import os
 from ray import rllib
 import gym
 import numpy as np
+import tensorflow as tf
+from ray.rllib.policy.policy import Policy
+tf.compat.v1.enable_eager_execution()
 
 
 MIN_OBSERVATION_SPACE = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -23,21 +27,23 @@ CONVERSION_DICT = {0: {'.': 0, 'P': 1, 'N': 2, 'B': 3, 'R': 4, 'Q': 5, 'K': 6,
                        'p': 7, 'n': 8, 'b': 9, 'r': 10, 'q': 11, 'k': 12},
                    1: {'.': 0, 'p': 1, 'n': 2, 'b': 3, 'r': 4, 'q': 5, 'k': 6,
                        'P': 7, 'N': 8, 'B': 9, 'R': 10, 'Q': 11, 'K': 12}}
+path = os.path.dirname(__file__).replace('\\', '/') + '/'
 
 
 class Game(rllib.env.multi_agent_env.MultiAgentEnv):
-    def __init__(self, mode: int = 0, draw: bool = False, win_reward: int = 1000) -> None:
+    def __init__(self, mode: int = 0, draw: bool = False, win_reward: int = 1000, interim_reward: int = 10) -> None:
         super().__init__()
         self._board = chess.Board()
         self._mode = mode
         self._turn = 0
         self._color = -1
         self._win_reward = win_reward
+        self._interim_reward = interim_reward
         self._draw = draw
         self._window = None
         if self._draw:
             self._window = Window(self._mode)
-        self._opponents = {0: self.get_moves, 1: '../Agents/Checkpoints/PPO'}
+        self._opponents = {0: self.get_moves, 1: '../Agents/Checkpoints/PPO/policies/chess_agent'}
         self._opponent = None
         # Alphazero paper (8 x 8 x 73)
         self.action_space = gym.spaces.Discrete(4672)
@@ -51,20 +57,37 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         self._agent_ids = {'white', 'black'}
 
         self.state = self.get_state()
-        self._opening_book = chess.polyglot.MemoryMappedReader('resources/opening_book.bin')
-        self._endgame_table = chess.syzygy.open_tablebase('resources/endgame_table')
+        self._opening_book = chess.polyglot.MemoryMappedReader(path + 'resources/opening_book.bin')
+        self._endgame_table = chess.syzygy.open_tablebase(path + 'resources/endgame_table')
+        self._last_dtz = 1000
 
     def reset(self) -> dict:
         self._board.reset()
         self._turn = 0
+        self._last_dtz = 1000
         if self._draw:
             self._window = Window(self._mode)
         return self.get_state()
 
-    def step(self, actions:dict) -> tuple[dict, dict, dict, dict]:
+    def step(self, actions: dict) -> tuple[dict, dict, dict, dict]:
+        rewards = {'white': 0, 'black': 0}
         for color, move in actions.items():
             if color == 'white' and self._turn == 0 or color == 'black' and self._turn == 1:
-                self._board.push_san(self.move_to_str(move))
+                move_str = self.move_to_str(move)
+                if move_str in self.get_opening_moves():
+                    if self._turn == 0:
+                        rewards = {'white': self._interim_reward, 'black': 0}
+                    else:
+                        rewards = {'white': 0, 'black': self._interim_reward}
+                elif self._endgame_table.get_wdl(self._board) == 2:
+                    dtz = self._endgame_table.get_dtz(self._board)
+                    if dtz < self._last_dtz:
+                        if self._turn == 0:
+                            rewards = {'white': self._interim_reward, 'black': 0}
+                        else:
+                            rewards = {'white': 0, 'black': self._interim_reward}
+                    self._last_dtz = dtz
+                self._board.push_san(move_str)
                 self._turn = (self._turn + 1) % 2
         new_obs = self.get_state()
         color = 'white' if self._turn == 0 else 'black'
@@ -78,7 +101,6 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 rewards = {'white': -self._win_reward, 'black': self._win_reward}
             dones = {color: True, '__all__': True}
         else:
-            rewards = {'white': 0, 'black': 0}
             dones = {color: False, '__all__': False}
         infos = {}
         return new_obs, rewards, dones, infos
@@ -88,9 +110,8 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             self._color, opponent_id = self._window.start(self.get_board())
             self._opponent = self._opponents[opponent_id]
             if type(self._opponent) is str:
-                from Chess_Agent_RL.Agents.PPO_Agent import PPOAgent
                 checkpoint_path = self._opponent
-                self._opponent = PPOAgent.restore(checkpoint_path)
+                self._opponent = Policy.from_checkpoint(checkpoint_path)
         while not self._board.is_game_over():
             print(self.get_opening_moves())
             print('DTZ:', self._endgame_table.get_dtz(self._board))
@@ -103,7 +124,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                     #chosen_move = random.randint(0, len(opponents_move) - 1)
                     #move = opponents_move[chosen_move]
                     color = 'white' if self._turn == 0 else 'black'
-                    move = self._opponent.compute_single_action(self.get_state()[color])
+                    move, _, _ = self._opponent.compute_single_action(self.get_state()[color])
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
             elif self._mode == 2:
@@ -276,7 +297,6 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         else:
             target_field = chr(98 + x) + str(y + 1 + y_promotion) + 'n'
         return field  + target_field
-
 
     def move_from_str(self, move: str, as_int: bool = False) -> tuple[int, int, int] | int:
         x = ord(move[0]) - 97
