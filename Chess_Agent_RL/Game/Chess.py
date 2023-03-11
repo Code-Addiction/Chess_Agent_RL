@@ -5,7 +5,7 @@ import chess.polyglot
 import chess.syzygy
 from Chess_Agent_RL.Game.Graphics import Window
 from Chess_Agent_RL.Game.Functions import convert_move
-import random
+from Chess_Agent_RL.Agents.Random_Agent import RandomAgent
 import os
 from ray import rllib
 import gym
@@ -43,10 +43,10 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         self._window = None
         if self._draw:
             self._window = Window(self._mode)
-        self._opponents = {0: self.get_moves, 1: '../Agents/Checkpoints/PPO/policies/chess_agent'}
         self._opponent = None
         # Alphazero paper (8 x 8 x 73)
-        self.action_space = gym.spaces.Discrete(4672)
+        self.number_actions = 4672
+        self.action_space = gym.spaces.Discrete(self.number_actions)
         # 64 fields, 2 castling right (for each color)
         self.observation_shape = (66,)
         self.observation_space = gym.spaces.Dict({
@@ -55,6 +55,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                                     high=MAX_OBSERVATION_SPACE,
                                     dtype=np.uint8)})
         self._agent_ids = {'white', 'black'}
+        self._opponents = {0: RandomAgent(self.number_actions), 1: '../Agents/Checkpoints/PPO'}
 
         self.state = self.get_state()
         self._opening_book = chess.polyglot.MemoryMappedReader(path + 'resources/opening_book.bin')
@@ -106,6 +107,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         return new_obs, rewards, dones, infos
 
     def run(self) -> None:
+        self.reset()
         if self._mode == 1:
             self._color, opponent_id = self._window.start(self.get_board())
             self._opponent = self._opponents[opponent_id]
@@ -113,18 +115,12 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 checkpoint_path = self._opponent
                 self._opponent = Policy.from_checkpoint(checkpoint_path)
         while not self._board.is_game_over():
-            print(self.get_opening_moves())
-            print('DTZ:', self._endgame_table.get_dtz(self._board))
-            print('WDL:', self._endgame_table.get_wdl(self._board))
             if self._mode == 1:
                 if self._turn == self._color:
                     move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
                 else:
-                    #opponents_move = self._opponent()
-                    #chosen_move = random.randint(0, len(opponents_move) - 1)
-                    #move = opponents_move[chosen_move]
                     color = 'white' if self._turn == 0 else 'black'
-                    move, _, _ = self._opponent.compute_single_action(self.get_state()[color])
+                    move, _, _ = self._opponent.compute_single_action(self.get_state()[color], explore=False)
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
             elif self._mode == 2:
@@ -143,8 +139,43 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             winner = 'BLACK'
 
         if self._window.finished(winner, self.get_board(), self._turn, False):
-            self.reset()
             self.run()
+
+    def evaluate(self, agent1: Policy | RandomAgent,
+                 agent2: Policy | RandomAgent | None = None,
+                 games: int = 1000) -> dict:
+        if agent2 is None:
+            agent2 = RandomAgent(self.number_actions)
+
+        results = {}
+
+        for color_id in range(2):
+            agents = [agent1, agent2]
+            if color_id == 1:
+                agents = agents[::-1]
+            win1, draw, win2 = 0, 0, 0
+
+            for _ in range(games):
+                self.reset()
+                while not self._board.is_game_over():
+                    color = 'white' if self._turn == 0 else 'black'
+                    move, _, _ = agents[self._turn].compute_single_action(self.get_state()[color], explore=False)
+                    self._board.push_san(self.move_to_str(move))
+                    self._turn = (self._turn + 1) % 2
+                outcome = self._board.outcome()
+                if outcome.winner is None:
+                    draw = draw + 1
+                elif outcome.winner:
+                    win1 = win1 + 1
+                else:
+                    win2 = win2 + 1
+
+            if color_id == 0:
+                results['white'] = (win1, draw, win2)
+            else:
+                results['black'] = (win2, draw, win1)
+
+        return results
 
     def get_board(self) -> list:
         if self._turn == 0:
@@ -323,5 +354,6 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
 
 
 if __name__ == '__main__':
-    game = Game(1, True)
-    game.run()
+    game = Game(1, False)
+    # game.run()
+    print(game.evaluate(Policy.from_checkpoint('../Agents/AllAgents/Version2/model_checkpoint_99/checkpoint_000100/policies/chess_agent'), games=500))

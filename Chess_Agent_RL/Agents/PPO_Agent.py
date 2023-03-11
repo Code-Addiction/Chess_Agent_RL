@@ -99,18 +99,16 @@ class PPOAgent:
         self.algo = self.config.build()
 
 
-    def training(self, stop_iters: int = 10, stop_timesteps: int = 10000000000000000000000):
+    def training(self, stop_iters: int = 10):
         ray.shutdown()
         ray.init(num_cpus=self.num_cpus)
         # run manual training loop and print results after each iteration
         for i in range(stop_iters):
             result = self.algo.train()
             print(pretty_print(result))
-            # stop training if the target train steps or reward are reached
-            #if result["timesteps_total"] >= stop_timesteps:
-            #    break
             if (i + 1) % 100 == 0:
                 self.algo.save(f"model_checkpoint_{i}")
+        self.algo.save(f"final_no_kl")
 
         ray.shutdown()
 
