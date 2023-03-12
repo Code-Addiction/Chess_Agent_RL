@@ -108,7 +108,6 @@ class PPOAgent:
             print(pretty_print(result))
             if (i + 1) % 100 == 0:
                 self.algo.save(f"model_checkpoint_{i}")
-        self.algo.save(f"final_no_kl")
 
         ray.shutdown()
 
@@ -117,10 +116,6 @@ class PPOAgent:
         agent = cls()
         agent.algo.restore(path)
         return agent
-
-    def compute_single_action(self, state:dict):
-        move, _, _ = self.algo.get_policy('chess_agent').compute_single_action(state, explore=False)
-        return move
 
 
 if __name__ == '__main__':
