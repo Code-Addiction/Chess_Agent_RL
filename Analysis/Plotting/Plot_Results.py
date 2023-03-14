@@ -15,6 +15,9 @@ def plot_v1():
     x, y = v1.prepare_for_plotting()
     plt.plot(x, y, 'b', linewidth=2)
     plt.plot(x, y, 'bx', markersize=12)
+    plt.xticks(x)
+    plt.xlabel("Training's iteration")
+    plt.ylabel("Evaluation")
     plt.title('Evaluation of agent version 1')
     plt.show()
 
@@ -53,11 +56,11 @@ def plot_v3():
     plt.show()
 
 def plot_v123():
-    #x1, y1 = v1.prepare_for_plotting()
+    x1, y1 = v1.prepare_for_plotting()
     x2, y2 = v2.prepare_for_plotting()
     x3, y3 = v3.prepare_for_plotting()
-    #plt.plot(x1, y1, 'b', linewidth=2, label='Version 1')
-    #plt.plot(x1, y1, 'bx', markersize=12)
+    plt.plot(x1, y1, 'b', linewidth=2, label='Version 1')
+    plt.plot(x1, y1, 'bx', markersize=12)
     plt.plot(x2, y2, 'g', linewidth=2, label='Version 2')
     plt.plot(x2, y2, 'gx', markersize=12)
     plt.plot(x3, y3, 'orange', linewidth=2, label='Version 3')
@@ -71,4 +74,4 @@ def plot_v123():
 
 if __name__ == '__main__':
     prepare_plots()
-    plot_v123()
+    plot_v1()
