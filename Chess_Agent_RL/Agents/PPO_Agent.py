@@ -33,8 +33,7 @@ class PPOAgent:
             .environment(Game, disable_env_checking=True)
             .framework('tf2', eager_tracing=eager_tracing)
             .callbacks(SelfPlayCallback)
-            .training(model={"custom_model": ActionMaskModel}, kl_coeff=0.0, entropy_coeff=0.005,
-                      entropy_coeff_schedule=[[0,0.005],[500,0]])
+            .training(model={"custom_model": ActionMaskModel}, kl_coeff=0.0)
             .multi_agent(
                 policies={
                     "chess_agent": PolicySpec(),

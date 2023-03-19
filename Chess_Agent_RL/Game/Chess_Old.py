@@ -38,7 +38,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         self._window = None
         if self._draw:
             self._window = Window(self._mode)
-        self._opponents = {0: self.get_moves, 1: '../Agents/Checkpoints/PPO'}
+        self._opponents = {0: self.get_moves, 1: '../Agents/PPO'}
         self._opponent = None
         # Alphazero paper (8 x 8 x 73) + 1 for draw
         self.number_actions = 4673

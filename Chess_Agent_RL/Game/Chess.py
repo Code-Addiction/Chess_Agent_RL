@@ -6,6 +6,7 @@ import chess.syzygy
 from Chess_Agent_RL.Game.Graphics import Window
 from Chess_Agent_RL.Game.Functions import convert_move
 from Chess_Agent_RL.Agents.Random_Agent import RandomAgent
+from Chess_Agent_RL.Agents.Stockfish_Agent import StockfishAgent
 import os
 from ray import rllib
 import gym
@@ -55,7 +56,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                                     high=MAX_OBSERVATION_SPACE,
                                     dtype=np.uint8)})
         self._agent_ids = {'white', 'black'}
-        self._opponents = {0: RandomAgent(self.number_actions), 1: '../Agents/Checkpoints/PPO'}
+        self._opponents = {0: '../Agents/Stockfish/stockfish-windows-2022-x86-64-avx2.exe', 1: '../Agents/PPO'}
 
         self.state = self.get_state()
         self._opening_book = chess.polyglot.MemoryMappedReader(path + 'resources/opening_book.bin')
@@ -66,6 +67,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         self._board.reset()
         self._turn = 0
         self._last_dtz = 1000
+        self._opponent = None
         if self._draw:
             self._window = Window(self._mode)
         return self.get_state()
@@ -110,25 +112,32 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         self.reset()
         if self._mode == 1:
             self._color, opponent_id = self._window.start(self.get_board())
-            self._opponent = self._opponents[opponent_id]
-            if type(self._opponent) is str:
-                checkpoint_path = self._opponent
-                self._opponent = Policy.from_checkpoint(checkpoint_path)
-        while not self._board.is_game_over():
-            if self._mode == 1:
+            agent_path = self._opponents[opponent_id]
+            if opponent_id == 0:
+                self._opponent = StockfishAgent(agent_path)
+            elif opponent_id == 1:
+                self._opponent = Policy.from_checkpoint(agent_path)
+
+        if self._mode == 1:
+            while not self._board.is_game_over():
                 if self._turn == self._color:
                     move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
                 else:
                     color = 'white' if self._turn == 0 else 'black'
-                    move, _, _ = self._opponent.compute_single_action(self.get_state()[color], explore=False)
-                self._board.push_san(self.move_to_str(move))
+                    move, _, _ = self._opponent.compute_single_action(self.get_state()[color],
+                                                                      board=self._board, explore=False)
+                if type(move) != str:
+                    move = self.move_to_str(move)
+                self._board.push_san(move)
                 self._turn = (self._turn + 1) % 2
-            elif self._mode == 2:
+        elif self._mode == 2:
+            while not self._board.is_game_over():
                 move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
+            self._turn = (self._turn + 1) % 2
 
-        self._turn = (self._turn + 1) % 2
+        self._opponent = None
 
         outcome = self._board.outcome()
         if outcome.winner is None:
@@ -357,4 +366,4 @@ if __name__ == '__main__':
     for i in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]:
         game = Game(1, False)
         print(f"\n\nCheckpoint {i}:")
-        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version4/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))
+        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version6/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))
