@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 
 
-labels = ['Version 1', 'Version 2', 'Version 3', 'Version 4', 'Version 5']
-training_time_secs = [93264.61471366882, 101255.86065530777, 90129.44551753998, 53526.764860630035, 56348.13920235634]
+labels = ['Version 1', 'Version 2', 'Version 3', 'Version 4', 'Version 5', 'Version 6']
+training_time_secs = [93264.61471366882, 101255.86065530777, 90129.44551753998, 53526.764860630035, 50251.625046014786,
+                      56348.13920235634]
 
 
 def prepare_plots():
