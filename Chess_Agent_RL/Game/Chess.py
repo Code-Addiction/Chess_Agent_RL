@@ -135,7 +135,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 move = self._window.run(self.get_board(), self._turn, self._board.is_check(), self.get_moves())
                 self._board.push_san(self.move_to_str(move))
                 self._turn = (self._turn + 1) % 2
-            self._turn = (self._turn + 1) % 2
+        self._turn = (self._turn + 1) % 2
 
         self._opponent = None
 
@@ -363,7 +363,9 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
 
 
 if __name__ == '__main__':
-    for i in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]:
+    """for i in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]:
         game = Game(1, False)
         print(f"\n\nCheckpoint {i}:")
-        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version7/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))
+        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version7/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))"""
+    game = Game(1, True)
+    game.run()
