@@ -56,7 +56,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                                     high=MAX_OBSERVATION_SPACE,
                                     dtype=np.uint8)})
         self._agent_ids = {'white', 'black'}
-        self._opponents = {0: '../Agents/Stockfish/stockfish-windows-2022-x86-64-avx2.exe', 1: '../Agents/PPO'}
+        self._opponents = {0: '../Agents/Stockfish/stockfish-windows-2022-x86-64-avx2.exe', 1: '../Agents/PPO'}  # '../Agents/AllAgents/Version10/model_checkpoint_899/checkpoint_000900/policies/chess_agent'
 
         self.state = self.get_state()
         self._opening_book = chess.polyglot.MemoryMappedReader(path + 'resources/opening_book.bin')
@@ -151,7 +151,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
             self.run()
 
     def evaluate(self, agent1: Policy | RandomAgent,
-                 agent2: Policy | RandomAgent | None = None,
+                 agent2: Policy | RandomAgent | StockfishAgent | None = None,
                  games: int = 1000) -> dict:
         if agent2 is None:
             agent2 = RandomAgent(self.number_actions)
@@ -168,8 +168,11 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
                 self.reset()
                 while not self._board.is_game_over():
                     color = 'white' if self._turn == 0 else 'black'
-                    move, _, _ = agents[self._turn].compute_single_action(self.get_state()[color], explore=False)
-                    self._board.push_san(self.move_to_str(move))
+                    move, _, _ = agents[self._turn].compute_single_action(self.get_state()[color], explore=False,
+                                                                          board=self._board)
+                    if type(move) != str:
+                        move = self.move_to_str(move)
+                    self._board.push_san(move)
                     self._turn = (self._turn + 1) % 2
                 outcome = self._board.outcome()
                 if outcome.winner is None:
@@ -363,7 +366,10 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
 
 
 if __name__ == '__main__':
-    for i in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]:
+    """for i in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]:
         game = Game(1, False)
         print(f"\n\nCheckpoint {i}:")
-        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version10/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))
+        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version10/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))"""
+
+    game = Game(1, True)
+    game.run()
