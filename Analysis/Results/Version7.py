@@ -1,13 +1,13 @@
-checkpoint100 = {'white': (26, 447, 27), 'black': (35, 422, 43)}
-checkpoint200 = {'white': (33, 433, 34), 'black': (29, 435, 36)}
-checkpoint300 = {'white': (38, 432, 30), 'black': (30, 432, 38)}
-checkpoint400 = {'white': (41, 427, 32), 'black': (39, 421, 40)}
-checkpoint500 = {'white': (31, 449, 20), 'black': (45, 431, 24)}
-checkpoint600 = {'white': (35, 441, 24), 'black': (37, 437, 26)}
-checkpoint700 = {'white': (50, 429, 21), 'black': (44, 428, 28)}
-checkpoint800 = {'white': (44, 418, 38), 'black': (34, 437, 29)}
-checkpoint900 = {'white': (52, 420, 28), 'black': (49, 410, 41)}
-checkpoint1000 = {'white': (61, 411, 28), 'black': (50, 433, 17)}
+checkpoint100 = {'white': (37, 429, 34), 'black': (48, 421, 31)}
+checkpoint200 = {'white': (35, 433, 32), 'black': (39, 423, 38)}
+checkpoint300 = {'white': (40, 415, 45), 'black': (48, 428, 24)}
+checkpoint400 = {'white': (49, 420, 31), 'black': (42, 431, 27)}
+checkpoint500 = {'white': (40, 420, 40), 'black': (51, 415, 34)}
+checkpoint600 = {'white': (42, 416, 42), 'black': (34, 438, 28)}
+checkpoint700 = {'white': (47, 429, 24), 'black': (53, 425, 22)}
+checkpoint800 = {'white': (58, 420, 22), 'black': (53, 427, 20)}
+checkpoint900 = {'white': (43, 431, 26), 'black': (55, 429, 16)}
+checkpoint1000 = {'white': (58, 410, 32), 'black': (54, 421, 25)}
 
 all_results = [checkpoint100, checkpoint200, checkpoint300, checkpoint400, checkpoint500,
                checkpoint600, checkpoint700, checkpoint800, checkpoint900, checkpoint1000]

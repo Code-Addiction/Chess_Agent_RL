@@ -150,7 +150,7 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
         if self._window.finished(winner, self.get_board(), self._turn, False):
             self.run()
 
-    def evaluate(self, agent1: Policy | RandomAgent,
+    def evaluate(self, agent1: Policy | RandomAgent | StockfishAgent,
                  agent2: Policy | RandomAgent | StockfishAgent | None = None,
                  games: int = 1000) -> dict:
         if agent2 is None:
@@ -366,10 +366,5 @@ class Game(rllib.env.multi_agent_env.MultiAgentEnv):
 
 
 if __name__ == '__main__':
-    """for i in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]:
-        game = Game(1, False)
-        print(f"\n\nCheckpoint {i}:")
-        print(game.evaluate(Policy.from_checkpoint(f'../Agents/AllAgents/Version10/model_checkpoint_{i}/checkpoint_{(i + 1):06d}/policies/chess_agent'), games=500))"""
-
     game = Game(1, True)
     game.run()
